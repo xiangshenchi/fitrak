@@ -1,13 +1,167 @@
+/* ============================================================
+   健身记录 App — 响应式样式
+   移动优先：默认底部标签栏；>=768px 切换为顶部导航 + 居中容器。
+   ============================================================ */
+
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #fafafa; }
-#tabs { position: fixed; bottom: 0; left: 0; right: 0; display: flex; background: #fff; border-top: 1px solid #ddd; }
-#tabs button { flex: 1; padding: 12px 0; border: 0; background: none; font-size: 14px; color: #555; }
-#tabs button.active { color: #2563eb; font-weight: 600; }
-main { padding: 12px 12px 64px; }
-.card { border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 12px; background: #fff; }
-.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-input[type=number], input[type=password], input[type=date], select { padding: 6px; }
-input[type=number], input[type=password], input[type=date] { width: 72px; }
-button.primary { background: #2563eb; color: #fff; border: 0; border-radius: 8px; padding: 10px 14px; }
-.checkin-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.checkin-grid div { text-align: center; padding: 10px 0; border: 1px solid #eee; border-radius: 6px; }
+
+:root {
+  --accent: #2563eb;
+  --accent-soft: #eff6ff;
+  --bg: #fafafa;
+  --border: #eee;
+  --line: #ddd;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --radius: 10px;
+  --nav-h: 56px;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* ---------- 内容容器（手机：底部留出标签栏高度 + iOS 安全区） ---------- */
+main {
+  padding: 12px 12px calc(var(--nav-h) + 20px + env(safe-area-inset-bottom));
+}
+
+/* ---------- 底部标签栏（手机默认） ---------- */
+#tabs {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  background: #fff;
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+/* 修复：ID 选择器的 display:flex 会盖过 UA 的 [hidden]，此处显式兜底 */
+#tabs[hidden] { display: none; }
+#tabs button {
+  flex: 1;
+  min-height: var(--nav-h);
+  padding: 12px 0;
+  border: 0;
+  background: none;
+  font-size: 14px;
+  color: #555;
+  cursor: pointer;
+}
+#tabs button.active { color: var(--accent); font-weight: 600; }
+
+/* ---------- 卡片 / 行 ---------- */
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 12px;
+  background: #fff;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+small { color: var(--muted); }
+
+/* ---------- 表单控件（手机：≥16px 防 iOS 聚焦缩放，≥40px 易点按） ---------- */
+input, select, button { font-family: inherit; }
+input[type=number], input[type=password], input[type=date], select {
+  padding: 8px 10px;
+  min-height: 40px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+}
+input[type=number], input[type=password], input[type=date] { width: 92px; }
+select { width: auto; }
+
+button { min-height: 36px; cursor: pointer; }
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-height: 40px;
+  font-size: 16px;
+}
+button[data-del] {
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #b91c1c;
+}
+
+/* ---------- 每周打卡网格（手机：7 等列） ---------- */
+.checkin-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+.checkin-grid div {
+  text-align: center;
+  padding: 10px 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ---------- 图表：随卡片缩放，绝不溢出 ---------- */
+.card canvas { display: block; width: 100% !important; max-width: 100%; height: auto; }
+
+/* ============================================================
+   桌面端 >= 768px
+   ============================================================ */
+@media (min-width: 768px) {
+  /* 居中定宽内容列 */
+  main {
+    max-width: 820px;
+    margin-inline: auto;
+    padding: 84px 20px 48px;   /* 顶部为固定导航留位 */
+  }
+
+  /* 标签栏：从底部挪到顶部并居中 */
+  #tabs {
+    top: 0;
+    bottom: auto;
+    padding-bottom: 0;
+    justify-content: center;
+    gap: 6px;
+    border-top: 0;
+    border-bottom: 1px solid var(--line);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .04);
+  }
+  #tabs button {
+    flex: 0 1 128px;
+    min-height: 56px;
+    margin: 6px 2px;
+    border-radius: 8px;
+    font-size: 15px;
+  }
+  #tabs button.active { background: var(--accent-soft); }
+
+  /* 输入框在桌面上放宽，便于填写 */
+  input[type=number], input[type=password], input[type=date] { width: 120px; }
+  input#pw { width: 260px; }
+
+  /* 登录页：唯一卡片，居中收窄 */
+  main > .card:only-child {
+    max-width: 440px;
+    margin-inline: auto;
+    margin-top: 6vh;
+    padding: 20px;
+  }
+}
