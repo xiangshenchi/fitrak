@@ -1,8 +1,8 @@
 name = "fitness-app"
 compatibility_date = "2025-07-18"
 pages_build_output_dir = "public"
-<<<<<<< HEAD
-=======
 
-
->>>>>>> e8ea104cbb8b49aec28efb2134bffb81531d9386
+[[d1_databases]]
+binding = "DB"
+database_name = "fitness-db"
+database_id = "0f7b11ab-f223-40f0-8d5e-a43085307198"
