@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>方向板 · 能量运动三版 · 健身记录</title>
+<style>
+  /* ===================== 方向板画布（与 app 无关的展示层） ===================== */
+  :root { --board-bg: #E8E5E0; --board-ink: #141210; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--board-bg);
+    color: var(--board-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .board-head {
+    max-width: 1500px; margin: 0 auto; padding: 40px 32px 8px;
+  }
+  .board-head h1 { font-size: 28px; font-weight: 800; letter-spacing: -.5px; margin: 0; }
+  .board-head p { color: #5f5a52; margin: 8px 0 0; max-width: 720px; line-height: 1.6; }
+  .boards {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 28px; justify-items: center;
+    padding: 32px; max-width: 1500px; margin: 0 auto;
+  }
+  @media (max-width: 1180px) { .boards { grid-template-columns: 1fr; } }
+  .board { display: flex; flex-direction: column; align-items: center; }
+  .board-caption { width: 320px; margin-top: 18px; text-align: left; }
+  .board-caption h2 { font-size: 20px; font-weight: 800; margin: 0 0 4px; }
+  .board-caption .tag { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; opacity: .75; }
+  .board-caption p { font-size: 13.5px; line-height: 1.65; color: #4a453f; margin: 8px 0 0; }
+  .board-caption .hex { font-family: ui-monospace, monospace; font-size: 11.5px; opacity: .7; }
+
+  /* ===================== 手机外框 ===================== */
+  .phone {
+    width: 320px; height: 692px;
+    border-radius: 46px;
+    background: #0b0a09;
+    padding: 10px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06) inset;
+    flex: none;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 38px;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+    background: var(--d-bg);
+    color: var(--d-text);
+    font-family: var(--d-font);
+  }
+
+  /* ===================== 共享结构（三版骨架一致，仅风格 token 不同） ===================== */
+  .status { display: flex; justify-content: space-between; padding: 14px 24px 0; font-size: 13px; font-weight: 700; opacity: .85; }
+  .app { flex: 1; overflow: hidden; padding: 6px 16px 0; }
+  .top { display: flex; justify-content: space-between; align-items: flex-start; margin: 10px 0 16px; }
+  .greet { font-size: 12.5px; opacity: .62; font-weight: 600; }
+  .day-name { font-size: 24px; font-weight: 800; letter-spacing: -.4px; margin-top: 2px; }
+  .streak {
+    font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 999px;
+    white-space: nowrap; display: flex; align-items: center; gap: 5px;
+  }
+  .streak svg { width: 14px; height: 14px; }
+  .progress-label { font-weight: 700; font-size: 12.5px; letter-spacing: .02em; margin-bottom: 8px; }
+  .chips { display: flex; gap: 8px; margin: 14px 0; }
+  .chip {
+    flex: 1; text-align: center; padding: 9px 0; border-radius: 10px;
+    font-size: 13px; font-weight: 700; background: var(--d-surface);
+  }
+  .chip.active { background: var(--d-accent); color: var(--d-accent-ink); }
+  .ex { margin-bottom: 12px; padding: 13px; border-radius: 16px; background: var(--d-surface); }
+  .ex-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .ex-name { font-weight: 800; font-size: 15px; }
+  .ex-sub { font-size: 11.5px; opacity: .55; font-weight: 600; }
+  .ex-done .ex-name { opacity: .5; text-decoration: line-through; }
+  .set-row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+  .set-no { font-size: 12px; font-weight: 700; opacity: .6; width: 34px; }
+  .set-input {
+    flex: 1; height: 40px; border-radius: 10px; display: flex; align-items: center; padding: 0 12px;
+    font-size: 16px; font-weight: 800; background: var(--d-field); border: 1px solid var(--d-line);
+  }
+  .set-input small { margin-left: auto; font-size: 11px; font-weight: 600; opacity: .45; }
+  .cta {
+    margin: 6px 0 12px; width: 100%; height: 52px; border-radius: 14px; border: 0;
+    font-size: 17px; font-weight: 800; letter-spacing: .01em; cursor: pointer;
+    background: var(--d-accent); color: var(--d-accent-ink);
+  }
+  .toast {
+    position: absolute; left: 16px; right: 16px; bottom: 74px;
+    padding: 12px 14px; border-radius: 14px; display: flex; align-items: center; gap: 9px;
+    font-size: 13px; font-weight: 700; background: var(--d-toast-bg); color: var(--d-toast-fg);
+    box-shadow: 0 12px 30px -10px rgba(0,0,0,.4);
+  }
+  .toast .dot { width: 20px; height: 20px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; background: var(--d-ok); color: #fff; font-size: 12px; }
+  .tabbar {
+    height: 68px; flex: none; display: flex; align-items: stretch;
+    padding: 6px 8px 12px; gap: 2px; background: var(--d-tabbar); border-top: 1px solid var(--d-line);
+  }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 10px; font-weight: 700; opacity: .45; }
+  .tab svg { width: 22px; height: 22px; }
+  .tab.active { opacity: 1; color: var(--d-accent); }
+
+  /* ===================== 方向 A · IGNITE 燃橙暗场 ===================== */
+  .dir-a {
+    --d-bg: #0F0D0B; --d-surface: #1B1714; --d-field: #241E19; --d-line: rgba(255,255,255,.07);
+    --d-text: #F4EDE4; --d-tabbar: #14110F;
+    --d-accent: #FF5A1F; --d-accent-ink: #1A0A00; --d-ok: #22C55E;
+    --d-toast-bg: #241E19; --d-toast-fg: #F4EDE4;
+    --d-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .dir-a .streak { background: rgba(255,90,31,.16); color: #FFB48A; }
+  .dir-a .ring-wrap { display: flex; flex-direction: column; align-items: center; margin: 6px 0 18px; }
+  .dir-a .ring {
+    width: 132px; height: 132px; border-radius: 50%; position: relative;
+    background: conic-gradient(#FF5A1F 0 50%, #2A211B 50% 100%);
+    box-shadow: 0 0 40px rgba(255,90,31,.28);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dir-a .ring::before { content: ""; position: absolute; inset: 11px; border-radius: 50%; background: #0F0D0B; }
+  .dir-a .ring b { position: relative; font-size: 30px; font-weight: 900; letter-spacing: -1px; }
+  .dir-a .ring span { position: relative; font-size: 11px; opacity: .55; font-weight: 700; margin-top: 2px; }
+  .dir-a .ring .inner { position: relative; display: flex; flex-direction: column; align-items: center; }
+  .dir-a .cta { background: linear-gradient(125deg, #FF7A2F, #FF3D00); box-shadow: 0 14px 30px -10px rgba(255,61,0,.55); }
+
+  /* ===================== 方向 B · MOMENTUM 电光绿亮场 ===================== */
+  .dir-b {
+    --d-bg: #F4F6F1; --d-surface: #FFFFFF; --d-field: #F7F9F3; --d-line: #E6E9E0;
+    --d-text: #0F1310; --d-tabbar: #FFFFFF;
+    --d-accent: #1FBF5F; --d-accent-ink: #04170C; --d-ok: #1FBF5F;
+    --d-toast-bg: #0F2E1C; --d-toast-fg: #E9FCEF;
+    --d-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .dir-b .streak { background: #E6F7EC; color: #0E8A47; }
+  .dir-b .bar-sec { margin: 4px 0 6px; }
+  .dir-b .bar { height: 10px; border-radius: 999px; background: var(--d-line); overflow: hidden; margin: 8px 0 6px; }
+  .dir-b .bar i { display: block; height: 100%; width: 50%; background: var(--d-accent); border-radius: 999px; }
+  .dir-b .bar-meta { display: flex; justify-content: space-between; font-size: 11.5px; font-weight: 700; opacity: .55; }
+  .dir-b .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 16px; }
+  .dir-b .stat { background: var(--d-surface); border: 1px solid var(--d-line); border-radius: 12px; padding: 10px 8px; text-align: center; }
+  .dir-b .stat b { display: block; font-size: 19px; font-weight: 800; letter-spacing: -.4px; }
+  .dir-b .stat span { font-size: 10px; font-weight: 700; opacity: .5; }
+  .dir-b .chips .chip { border-radius: 8px; }
+  .dir-b .cta { border-radius: 10px; background: var(--d-accent); }
+  .dir-b .ex { border-radius: 12px; border: 1px solid var(--d-line); }
+
+  /* ===================== 方向 C · BEASTMODE 荧光海报 ===================== */
+  .dir-c {
+    --d-bg: #0A0A0A; --d-surface: #141414; --d-field: #1B1B1B; --d-line: rgba(255,255,255,.09);
+    --d-text: #F2F2F0; --d-tabbar: #000000;
+    --d-accent: #DFFF00; --d-accent-ink: #0A0A0A; --d-ok: #DFFF00;
+    --d-toast-bg: #DFFF00; --d-toast-fg: #0A0A0A;
+    --d-font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .dir-c .streak { background: #DFFF00; color: #0A0A0A; border-radius: 6px; }
+  .dir-c .hero-num {
+    font-size: 120px; font-weight: 950; line-height: .9; letter-spacing: -6px;
+    font-stretch: condensed; color: #DFFF00; margin: 4px 0 2px;
+    text-shadow: 0 0 60px rgba(223,255,0,.25);
+  }
+  .dir-c .hero-num small { font-size: 34px; letter-spacing: -1px; opacity: .55; }
+  .dir-c .progress-label { color: #DFFF00; }
+  .dir-c .chips .chip { border-radius: 6px; border: 1px solid rgba(255,255,255,.12); background: transparent; }
+  .dir-c .chips .chip.active { background: #DFFF00; color: #0A0A0A; border-color: #DFFF00; }
+  .dir-c .ex { border-radius: 6px; border: 1px solid var(--d-line); }
+  .dir-c .set-input { font-weight: 900; }
+  .dir-c .cta { border-radius: 6px; background: #DFFF00; color: #0A0A0A; letter-spacing: .04em; }
+  .dir-c .tabbar .tab.active { color: #DFFF00; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 6.5v11M4 8.5v7M9 8.5v7M6.5 12H17.5M15 8.5v7M20 8.5v7M17.5 6.5v11"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.5l2.5 2.5 4.5-5"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3c1 3-1.5 5-3 7-1.8 2.4-.5 6 .5 7.5C11 20.5 13 21 15 20c2.5-1.2 3.5-4 3-6.5-.4-2-1-3.5-2-5 0 0-1 2-2 2S12 3 12 3Z"/></symbol>
+  </defs>
+</svg>
+
+<header class="board-head">
+  <h1>能量运动 · 三方向</h1>
+  <p>同一套真实内容（4 天力量训练 · 今日「推日」· 连续 12 天 · 进度 2/4），只在「能量运动」语境里做三种不同诠释。选中一个我就把它落到真实的 styles.css / app.js 上。双击打开本文件即可对照。</p>
+</header>
+
+<div class="boards">
+
+  <!-- ================= A. IGNITE 燃橙暗场 ================= -->
+  <div class="board">
+    <div class="phone dir-a">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="app">
+          <div class="top">
+            <div>
+              <div class="greet">周一 · 10月13日</div>
+              <div class="day-name">推日</div>
+            </div>
+            <div class="streak"><svg><use href="#i-flame"/></svg>连续 12 天</div>
+          </div>
+          <div class="ring-wrap">
+            <div class="ring"><div class="inner"><b>2<span>/4</span></b><span>动作已完成</span></div></div>
+          </div>
+          <div class="chips">
+            <div class="chip active">推</div><div class="chip">拉</div><div class="chip">腿</div><div class="chip">肩</div>
+          </div>
+          <div class="ex ex-done">
+            <div class="ex-head"><div class="ex-name">卧推</div><div class="ex-sub">胸 · 5×5 ✓</div></div>
+          </div>
+          <div class="ex ex-done">
+            <div class="ex-head"><div class="ex-name">站姿推举</div><div class="ex-sub">肩 · 5×5 ✓</div></div>
+          </div>
+          <div class="ex">
+            <div class="ex-head"><div class="ex-name">上斜卧推</div><div class="ex-sub">上胸 · 5×5</div></div>
+            <div class="set-row"><div class="set-no">第1组</div><div class="set-input">60<small>kg</small></div><div class="set-input">5<small>次</small></div></div>
+            <div class="set-row"><div class="set-no">第2组</div><div class="set-input">62.5<small>kg</small></div><div class="set-input">5<small>次</small></div></div>
+          </div>
+          <button class="cta">完成本次训练</button>
+        </div>
+        <div class="toast"><span class="dot">✓</span>已记录 · 连续 12 天</div>
+        <nav class="tabbar">
+          <div class="tab active"><svg><use href="#i-dumbbell"/></svg>今天</div>
+          <div class="tab"><svg><use href="#i-cal"/></svg>计划</div>
+          <div class="tab"><svg><use href="#i-list"/></svg>记录</div>
+          <div class="tab"><svg><use href="#i-chart"/></svg>图表</div>
+          <div class="tab"><svg><use href="#i-check"/></svg>打卡</div>
+        </nav>
+      </div>
+    </div>
+    <div class="board-caption">
+      <div class="tag">IGNITE · 燃橙暗场</div>
+      <h2>夜练 · 力量 · 燃</h2>
+      <p>深炭底 + 高饱和橙的发光进度环，像 Nike Training / Apple Fitness 的暗场。奖励反馈是橙色脉冲「又练一天」——力量感与仪式感最强，但深色对室内强光下可读性略降。</p>
+      <div class="hex">#0F0D0B · #FF5A1F · #FFB48A</div>
+    </div>
+  </div>
+
+  <!-- ================= B. MOMENTUM 电光绿亮场 ================= -->
+  <div class="board">
+    <div class="phone dir-b">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="app">
+          <div class="top">
+            <div>
+              <div class="greet">周一 · 10月13日</div>
+              <div class="day-name">推日</div>
+            </div>
+            <div class="streak"><svg><use href="#i-flame"/></svg>连续 12 天</div>
+          </div>
+          <div class="bar-sec">
+            <div class="progress-label">今日进度 · 2/4 动作</div>
+            <div class="bar"><i></i></div>
+            <div class="bar-meta"><span>已完成 2</span><span>剩余 2</span></div>
+          </div>
+          <div class="stats">
+            <div class="stat"><b>8</b><span>今日组数</span></div>
+            <div class="stat"><b>1.2t</b><span>总容量</span></div>
+            <div class="stat"><b>42min</b><span>耗时</span></div>
+          </div>
+          <div class="chips">
+            <div class="chip active">推</div><div class="chip">拉</div><div class="chip">腿</div><div class="chip">肩</div>
+          </div>
+          <div class="ex ex-done">
+            <div class="ex-head"><div class="ex-name">卧推</div><div class="ex-sub">胸 · 5×5 ✓</div></div>
+          </div>
+          <div class="ex">
+            <div class="ex-head"><div class="ex-name">站姿推举</div><div class="ex-sub">肩 · 5×5</div></div>
+            <div class="set-row"><div class="set-no">第1组</div><div class="set-input">45<small>kg</small></div><div class="set-input">5<small>次</small></div></div>
+          </div>
+          <button class="cta">完成本次训练</button>
+        </div>
+        <div class="toast"><span class="dot">✓</span>已记录 · 连续 12 天</div>
+        <nav class="tabbar">
+          <div class="tab active"><svg><use href="#i-dumbbell"/></svg>今天</div>
+          <div class="tab"><svg><use href="#i-cal"/></svg>计划</div>
+          <div class="tab"><svg><use href="#i-list"/></svg>记录</div>
+          <div class="tab"><svg><use href="#i-chart"/></svg>图表</div>
+          <div class="tab"><svg><use href="#i-check"/></svg>打卡</div>
+        </nav>
+      </div>
+    </div>
+    <div class="board-caption">
+      <div class="tag">MOMENTUM · 电光绿亮场</div>
+      <h2>清晨 · 数据 · 锐利</h2>
+      <p>近白底 + 电光绿进度条 + 今日组数/容量/耗时三格仪表盘，Strava / 运动手表味的「高效数据」感。对数据密度和可读性最友好，但气质更偏「工具」而非「燃」。</p>
+      <div class="hex">#F4F6F1 · #1FBF5F · #0F1310</div>
+    </div>
+  </div>
+
+  <!-- ================= C. BEASTMODE 荧光海报 ================= -->
+  <div class="board">
+    <div class="phone dir-c">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>●●●</span></div>
+        <div class="app">
+          <div class="top">
+            <div>
+              <div class="greet">周一 · 10月13日</div>
+              <div class="day-name">推日</div>
+            </div>
+            <div class="streak"><svg><use href="#i-flame"/></svg>连续 12 天</div>
+          </div>
+          <div class="progress-label">今日进度</div>
+          <div class="hero-num">2<small>/4</small></div>
+          <div class="chips">
+            <div class="chip active">推</div><div class="chip">拉</div><div class="chip">腿</div><div class="chip">肩</div>
+          </div>
+          <div class="ex ex-done">
+            <div class="ex-head"><div class="ex-name">卧推</div><div class="ex-sub">胸 · 5×5 ✓</div></div>
+          </div>
+          <div class="ex">
+            <div class="ex-head"><div class="ex-name">站姿推举</div><div class="ex-sub">肩 · 5×5</div></div>
+            <div class="set-row"><div class="set-no">第1组</div><div class="set-input">45<small>kg</small></div><div class="set-input">5<small>次</small></div></div>
+          </div>
+          <button class="cta">完成本次训练</button>
+        </div>
+        <div class="toast"><span class="dot">✓</span>已记录 · 连续 12 天</div>
+        <nav class="tabbar">
+          <div class="tab active"><svg><use href="#i-dumbbell"/></svg>今天</div>
+          <div class="tab"><svg><use href="#i-cal"/></svg>计划</div>
+          <div class="tab"><svg><use href="#i-list"/></svg>记录</div>
+          <div class="tab"><svg><use href="#i-chart"/></svg>图表</div>
+          <div class="tab"><svg><use href="#i-check"/></svg>打卡</div>
+        </nav>
+      </div>
+    </div>
+    <div class="board-caption">
+      <div class="tag">BEASTMODE · 荧光海报</div>
+      <h2>街头 · 张扬 · 训练狂</h2>
+      <p>碳黑 + 荧光黄 (volt) 的超大 compressed 数字与海报式巨字，Gymshark / 运动潮牌语感。个性最冲、辨识度最高，但对「日常安静记录」可能略显激进。</p>
+      <div class="hex">#0A0A0A · #DFFF00 · #F2F2F0</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

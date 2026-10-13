@@ -2,7 +2,7 @@
 
 个人健身记录 Web App,部署到 Cloudflare Pages + Pages Functions + D1。
 
-- 前端:免构建静态页面(原生 HTML/CSS/JS),Chart.js 走 CDN。
+- 前端:免构建静态页面(原生 HTML/CSS/JS),Chart.js 本地托管于 `public/vendor/`。
 - 后端:Pages Functions(`functions/api/*`)。
 - 数据:D1(SQLite),绑定名 `DB`。
 - 认证:单一密码,HMAC 签名 `HttpOnly` Cookie。
