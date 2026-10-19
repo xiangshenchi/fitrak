@@ -14,16 +14,20 @@ fitness-app/
 ├─ public/                     # 静态前端
 │  ├─ index.html
 │  ├─ styles.css
-│  └─ app.js
+│  ├─ app.js
+│  └─ _headers                 # 安全响应头 + 静态资源缓存策略
 ├─ functions/api/              # 接口
 │  ├─ _middleware.js           # 统一鉴权(除 /api/login 外)
 │  ├─ _auth.js                 # token 签名/校验、Cookie、json 工具
+│  ├─ _validate.js             # 请求字段校验纯函数
 │  ├─ login.js  logout.js
 │  ├─ plan.js
 │  ├─ sessions.js  set-logs.js
+│  ├─ history.js               # 记录页聚合接口(一次取回 session + 明细)
 │  └─ body-weights.js
-├─ tests/auth.test.js          # 单测(鉴权纯函数)
-├─ schema.sql                  # 建表 + 预置 4 天训练计划
+├─ migrations/                 # 增量迁移(对已有库安全，可重复执行)
+├─ tests/                      # 单测(鉴权/校验纯函数)
+├─ schema.sql                  # 建表 + 预置 4 天训练计划(新库用)
 ├─ wrangler.toml
 └─ package.json
 ```
@@ -55,6 +59,16 @@ fitness-app/
    ```
    npm test
    ```
+
+## 已有数据库升级(增量迁移)
+
+新库直接执行 `schema.sql` 即可;已有库(本地或线上)用 `migrations/` 下的脚本升级,
+脚本均为幂等,可重复执行:
+
+- 本地:`npm run db:migrate:local`
+- 线上:`npm run db:migrate:remote`
+
+当前包含:索引补齐、`login_attempts` 表(登录限流用,表不存在时限流自动降级)。
 
 ## 部署到 Cloudflare
 

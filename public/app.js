@@ -27,6 +27,15 @@ async function api(path, opts = {}) {
   return res.json();
 }
 
+// 训练计划是静态数据：缓存首次结果，避免各页面重复请求
+let planPromise = null;
+function getPlan() {
+  if (!planPromise) {
+    planPromise = api('/api/plan').catch(e => { planPromise = null; throw e; });
+  }
+  return planPromise;
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -195,7 +204,7 @@ function renderLogin() {
    ============================================================ */
 async function boot() {
   try {
-    await api('/api/plan');
+    await getPlan();
   } catch (e) {
     if (e.status === 401) return; // 已在 api() 内渲染登录页
     app.innerHTML = `<main><section class="card load-fail">
@@ -213,6 +222,11 @@ async function boot() {
 }
 
 function showTab(name) {
+  // 离开图表页时销毁实例，避免残留引用与后台重绘
+  if (name !== 'charts') {
+    window.wChart?.destroy(); window.wChart = null;
+    window.cChart?.destroy(); window.cChart = null;
+  }
   tabs.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   const fn = { today: renderToday, plan: renderPlan, history: renderHistory, charts: renderCharts, checkin: renderCheckin }[name];
   if (fn) fn();
@@ -222,7 +236,7 @@ function showTab(name) {
    今天：激励头部 + 进度 + 三格数据 + 记录
    ============================================================ */
 async function renderToday() {
-  const { days } = await api('/api/plan');
+  const { days } = await getPlan();
   if (!days.length) {
     app.innerHTML = `<main><div class="empty">还没有训练计划。</div></main>`;
     return;
@@ -308,6 +322,9 @@ async function renderToday() {
     const day = dayById(selectedDayId);
     const draft = JSON.parse(localStorage.getItem(draftKey(day.id)) || '{}');
     const doneIds = new Set(currentLogs.filter(l => l.weight != null || l.reps != null).map(l => Number(l.plan_exercise_id)));
+    // 已保存的明细用于回填输入框：再次保存时才会带上之前记录的组，避免覆盖丢数据
+    const savedRow = {};
+    currentLogs.forEach(l => { savedRow[`${l.plan_exercise_id}_${l.set_no}`] = l; });
 
     document.getElementById('exWrap').innerHTML = day.exercises.map(e => {
       const isDone = doneIds.has(e.id);
@@ -321,20 +338,31 @@ async function renderToday() {
           ${isDone ? '<span class="ex-check">✓</span>' : ''}
         </div>
         ${sets.map(n => {
-          const d = draft[e.id]?.[n] || {};
+          const d = draft[e.id]?.[n];                    // 有草稿时以草稿为准（含显式清空）
+          const sv = savedRow[`${e.id}_${n}`] || {};
+          const w = d ? (d.weight ?? '') : (sv.weight ?? '');
+          const rp = d ? (d.reps ?? '') : (sv.reps ?? '');
           return `<div class="set-row">
             <span class="set-no">第${n}组</span>
-            <label class="set-field"><input type="number" inputmode="decimal" step="0.5" placeholder="—" data-ex="${e.id}" data-set="${n}" data-k="weight" value="${d.weight ?? ''}" /><span class="unit">kg</span></label>
-            <label class="set-field"><input type="number" inputmode="numeric" step="1" placeholder="—" data-ex="${e.id}" data-set="${n}" data-k="reps" value="${d.reps ?? ''}" /><span class="unit">次</span></label>
+            <label class="set-field"><input type="number" inputmode="decimal" step="0.5" placeholder="—" aria-label="${escapeHtml(e.name)} 第${n}组 重量" data-ex="${e.id}" data-set="${n}" data-k="weight" value="${w}" /><span class="unit">kg</span></label>
+            <label class="set-field"><input type="number" inputmode="numeric" step="1" placeholder="—" aria-label="${escapeHtml(e.name)} 第${n}组 次数" data-ex="${e.id}" data-set="${n}" data-k="reps" value="${rp}" /><span class="unit">次</span></label>
           </div>`;
         }).join('')}
       </div>`;
     }).join('');
 
-    // 输入即存草稿，防手滑丢数据
-    document.querySelectorAll('#exWrap input').forEach(inp => {
+    // 输入即存草稿，防手滑丢数据；回车跳下一格，方便连续录入
+    const inputs = [...document.querySelectorAll('#exWrap input')];
+    inputs.forEach((inp, i) => {
       inp.oninput = () => {
         localStorage.setItem(draftKey(selectedDayId), JSON.stringify(collect()));
+      };
+      inp.enterKeyHint = i === inputs.length - 1 ? 'done' : 'next';
+      inp.onkeydown = ev => {
+        if (ev.key !== 'Enter') return;
+        ev.preventDefault();
+        if (inputs[i + 1]) inputs[i + 1].focus();
+        else inp.blur();
       };
     });
   }
@@ -380,12 +408,10 @@ async function renderToday() {
     const btn = document.getElementById('save');
     btn.disabled = true;
     try {
-      const { id: session_id } = await api('/api/sessions', {
-        method: 'POST', body: JSON.stringify({ date: selectedDate, day_id: selectedDayId }),
+      // 一次请求提交整次训练：服务端按(日期,训练日)复用 session 并覆盖明细
+      await api('/api/sessions', {
+        method: 'POST', body: JSON.stringify({ date: selectedDate, day_id: selectedDayId, logs: rows }),
       });
-      for (const r of rows) {
-        await api('/api/set-logs', { method: 'POST', body: JSON.stringify({ session_id, ...r }) });
-      }
       localStorage.removeItem(draftKey(selectedDayId));
       toast('已保存 · 完成本次训练');
       pulse(btn);
@@ -405,7 +431,7 @@ async function renderToday() {
    计划
    ============================================================ */
 async function renderPlan() {
-  const { days } = await api('/api/plan');
+  const { days } = await getPlan();
   app.innerHTML = `<main>
     <div class="page-head"><h1>训练计划</h1><p>${days.length} 个训练日 · 共 ${days.reduce((a, d) => a + d.exercises.length, 0)} 个动作</p></div>
     ${days.map(d => `
@@ -422,7 +448,8 @@ async function renderPlan() {
    历史记录
    ============================================================ */
 async function renderHistory() {
-  const [{ sessions }, { days }] = await Promise.all([api('/api/sessions'), api('/api/plan')]);
+  // /api/history 一次返回全部 session 及其明细，避免逐条请求（N+1）
+  const [{ items }, { days }] = await Promise.all([api('/api/history'), getPlan()]);
   const dayName = id => (days.find(d => d.id === id) || {}).name || `Day${id}`;
   const exName = id => {
     for (const d of days) {
@@ -431,11 +458,26 @@ async function renderHistory() {
     }
     return `动作${id}`;
   };
-  const list = sortSessions(sessions).reverse(); // 最新在前
+
+  const detailHtml = s => {
+    const valid = s.logs.filter(l => l.weight != null || l.reps != null);
+    if (!valid.length) return '<span class="loading-txt">无明细</span>';
+    const groups = {};
+    valid.forEach(l => { (groups[l.plan_exercise_id] = groups[l.plan_exercise_id] || []).push(l); });
+    const vol = valid.reduce((a, l) => a + (Number(l.weight) || 0) * (Number(l.reps) || 0), 0);
+    return `<div class="hist-vol">总容量 ${fmtVolume(vol)} · ${valid.length} 组</div>` +
+      Object.keys(groups).map(pid => {
+        const g = groups[pid].sort((a, b) => a.set_no - b.set_no);
+        return `<div class="hist-ex">
+          <span class="hist-ex-name">${escapeHtml(exName(Number(pid)))}</span>
+          <span class="hist-ex-sets">${g.map(l => `${l.weight ?? '-'}kg×${l.reps ?? '-'}`).join(' · ')}</span>
+        </div>`;
+      }).join('');
+  };
 
   app.innerHTML = `<main>
-    <div class="page-head"><h1>训练记录</h1><p>共 ${list.length} 次训练</p></div>
-    ${list.length ? list.map(s => `
+    <div class="page-head"><h1>训练记录</h1><p>共 ${items.length} 次训练</p></div>
+    ${items.length ? items.map(s => `
       <section class="card hist-card">
         <div class="hist-head">
           <div>
@@ -444,7 +486,7 @@ async function renderHistory() {
           </div>
           <button type="button" class="btn-del" data-del="${s.id}">删除</button>
         </div>
-        <div class="hist-detail" data-detail="${s.id}"><span class="loading-txt">加载明细…</span></div>
+        <div class="hist-detail">${detailHtml(s)}</div>
       </section>`).join('') : '<div class="empty">还没有训练记录，去「今天」记录一次吧。</div>'}
   </main>`;
 
@@ -459,29 +501,6 @@ async function renderHistory() {
       toast('删除失败，请重试', 'error');
     }
   });
-
-  for (const s of list) {
-    try {
-      const { logs } = await api('/api/set-logs?session_id=' + s.id);
-      const valid = logs.filter(l => l.weight != null || l.reps != null);
-      const el = document.querySelector(`[data-detail="${s.id}"]`);
-      if (!el) continue;
-      if (!valid.length) { el.innerHTML = '<span class="loading-txt">无明细</span>'; continue; }
-      const groups = {};
-      valid.forEach(l => { (groups[l.plan_exercise_id] = groups[l.plan_exercise_id] || []).push(l); });
-      const vol = valid.reduce((a, l) => a + (Number(l.weight) || 0) * (Number(l.reps) || 0), 0);
-      el.innerHTML = `<div class="hist-vol">总容量 ${fmtVolume(vol)} · ${valid.length} 组</div>` +
-        Object.keys(groups).map(pid => {
-          const g = groups[pid].sort((a, b) => a.set_no - b.set_no);
-          return `<div class="hist-ex">
-            <span class="hist-ex-name">${escapeHtml(exName(Number(pid)))}</span>
-            <span class="hist-ex-sets">${g.map(l => `${l.weight ?? '-'}kg×${l.reps ?? '-'}`).join(' · ')}</span>
-          </div>`;
-        }).join('');
-    } catch {
-      /* 单条明细失败不影响其它记录 */
-    }
-  }
 }
 
 /* ============================================================

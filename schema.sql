@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS set_logs;
 DROP TABLE IF EXISTS sessions;
 DROP TABLE IF EXISTS plan_exercises;
@@ -40,6 +41,18 @@ CREATE TABLE body_weights (
   date TEXT NOT NULL,
   weight REAL NOT NULL
 );
+
+-- 登录失败记录（按 IP 限流用）
+CREATE TABLE login_attempts (
+  ip TEXT NOT NULL,
+  ts INTEGER NOT NULL
+);
+
+CREATE INDEX idx_sessions_date_day ON sessions(date, day_id);
+CREATE INDEX idx_set_logs_session ON set_logs(session_id);
+CREATE INDEX idx_plan_exercises_day ON plan_exercises(day_id);
+CREATE INDEX idx_body_weights_date ON body_weights(date);
+CREATE INDEX idx_login_attempts_ip_ts ON login_attempts(ip, ts);
 
 INSERT INTO plan_days (id, name) VALUES
   (1, '上肢A(胸+三头)'),

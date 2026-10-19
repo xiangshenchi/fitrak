@@ -1,4 +1,5 @@
 import { json } from './_auth.js';
+import { isValidLogRow } from './_validate.js';
 
 export async function onRequestGet({ request, env }) {
   const sid = new URL(request.url).searchParams.get('session_id');
@@ -11,9 +12,10 @@ export async function onRequestGet({ request, env }) {
 
 export async function onRequestPost({ request, env }) {
   let b; try { b = await request.json(); } catch { return json({ error: 'bad request' }, 400); }
-  if (!b.session_id || !b.plan_exercise_id || !b.set_no) {
+  if (!Number.isInteger(b.session_id)) {
     return json({ error: 'session_id, plan_exercise_id, set_no required' }, 400);
   }
+  if (!isValidLogRow(b)) return json({ error: 'invalid log row' }, 400);
   const r = await env.DB.prepare(
     'INSERT INTO set_logs (session_id, plan_exercise_id, set_no, weight, reps) VALUES (?,?,?,?,?)'
   ).bind(b.session_id, b.plan_exercise_id, b.set_no, b.weight ?? null, b.reps ?? null).run();

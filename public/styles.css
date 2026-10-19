@@ -47,6 +47,9 @@ body {
 /* 通用图标尺寸 */
 .ic { width: 22px; height: 22px; display: block; }
 
+/* 内联 symbol 容器：用类替代 style 属性，以便 CSP 收紧到 style-src 'self' */
+.svg-defs { position: absolute; }
+
 /* ---------- 内容容器（手机：底部留出标签栏高度 + iOS 安全区） ---------- */
 main {
   padding: 14px 14px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom));
@@ -210,6 +213,8 @@ small { color: var(--muted); }
 .set-no { font-size: 12px; font-weight: 700; color: var(--faint); width: 44px; flex: none; }
 .set-field {
   flex: 1;
+  /* flex 子项默认 min-width:auto，数字输入框的固有宽度会把整行撑出屏幕，须显式归零 */
+  min-width: 0;
   display: flex; align-items: center; gap: 6px;
   height: 42px; padding: 0 10px;
   border-radius: var(--radius-sm);

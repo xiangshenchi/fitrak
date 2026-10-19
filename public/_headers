@@ -1,0 +1,11 @@
+# 全局安全响应头
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY
+  Permissions-Policy: geolocation=(), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'
+
+# 第三方库带版本号，可长期缓存
+/vendor/*
+  Cache-Control: public, max-age=31536000, immutable
