@@ -6,8 +6,10 @@
     "dev": "wrangler pages dev public",
     "deploy": "wrangler pages deploy public",
     "test": "vitest run",
-    "db:migrate:local": "wrangler d1 execute fitness-db --local --file=./migrations/0002_indexes_and_login_attempts.sql",
-    "db:migrate:remote": "wrangler d1 execute fitness-db --remote --file=./migrations/0002_indexes_and_login_attempts.sql"
+    "db:init:local": "wrangler d1 execute fitness-db --local --file=./schema.sql",
+    "db:init:remote": "wrangler d1 execute fitness-db --remote --file=./schema.sql",
+    "db:migrate:local": "wrangler d1 execute fitness-db --local --file=./migrations/0002_indexes_and_login_attempts.sql && wrangler d1 execute fitness-db --local --file=./migrations/0003_exercise_tutorials.sql",
+    "db:migrate:remote": "wrangler d1 execute fitness-db --remote --file=./migrations/0002_indexes_and_login_attempts.sql && wrangler d1 execute fitness-db --remote --file=./migrations/0003_exercise_tutorials.sql"
   },
   "devDependencies": {
     "vitest": "^2.1.0",
