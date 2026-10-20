@@ -9,3 +9,11 @@
 # 第三方库带版本号，可长期缓存
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable
+
+# 页面与自有脚本：始终走 ETag 校验，保证发布即生效
+/index.html
+  Cache-Control: no-cache
+/app.js
+  Cache-Control: no-cache
+/styles.css
+  Cache-Control: no-cache

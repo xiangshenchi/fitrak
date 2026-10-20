@@ -1,0 +1,2 @@
+APP_PASSWORD=change-me
+AUTH_SECRET=please-change-to-a-long-random-string
