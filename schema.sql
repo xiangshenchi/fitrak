@@ -1,3 +1,6 @@
+-- ⚠️ 本脚本用于【全新数据库】：会 DROP TABLE 重建，执行后原有数据将全部丢失。
+--    已有数据的库（本地或线上）请改用 migrations/ 下的增量脚本：
+--    本地: npm run db:migrate:local   线上: npm run db:migrate:remote
 DROP TABLE IF EXISTS login_attempts;
 DROP TABLE IF EXISTS set_logs;
 DROP TABLE IF EXISTS sessions;
@@ -53,6 +56,34 @@ CREATE INDEX idx_set_logs_session ON set_logs(session_id);
 CREATE INDEX idx_plan_exercises_day ON plan_exercises(day_id);
 CREATE INDEX idx_body_weights_date ON body_weights(date);
 CREATE INDEX idx_login_attempts_ip_ts ON login_attempts(ip, ts);
+
+-- 动作示范教程链接（动作名 -> MuscleWiki 具体页；缺失时前端回退为站内检索）
+CREATE TABLE IF NOT EXISTS exercise_tutorials (
+  exercise_name TEXT PRIMARY KEY,
+  url           TEXT NOT NULL
+);
+
+INSERT OR REPLACE INTO exercise_tutorials (exercise_name, url) VALUES
+  ('哑铃卧推', 'https://musclewiki.com/exercise/dumbbell-bench-press'),
+  ('上斜哑铃卧推', 'https://musclewiki.com/exercise/dumbbell-incline-bench-press'),
+  ('龙门架夹胸', 'https://musclewiki.com/exercise/cable-pec-fly'),
+  ('哑铃肩推', 'https://musclewiki.com/exercise/dumbbell-seated-overhead-press'),
+  ('绳索下压(三头)', 'https://musclewiki.com/exercise/cable-rope-pushdown'),
+  ('俯卧撑', 'https://musclewiki.com/exercise/push-up'),
+  ('哑铃高脚杯深蹲', 'https://musclewiki.com/exercise/dumbbell-goblet-squat'),
+  ('腿举机', 'https://musclewiki.com/exercise/machine-leg-press'),
+  ('腿屈伸机', 'https://musclewiki.com/exercise/machine-leg-extension'),
+  ('提踵', 'https://musclewiki.com/exercise/machine-standing-calf-raises'),
+  ('平板支撑', 'https://musclewiki.com/exercise/forearm-plank'),
+  ('高位下拉', 'https://musclewiki.com/exercise/machine-pulldown'),
+  ('坐姿划船', 'https://musclewiki.com/exercise/machine-seated-cable-row'),
+  ('绳索/哑铃弯举', 'https://musclewiki.com/exercise/dumbbell-curl'),
+  ('锤式弯举', 'https://musclewiki.com/exercise/dumbbell-hammer-curl'),
+  ('哑铃侧平举', 'https://musclewiki.com/exercise/dumbbell-lateral-raise'),
+  ('哑铃罗马尼亚硬拉', 'https://musclewiki.com/exercise/dumbbell-romanian-deadlift'),
+  ('保加利亚分腿蹲/臀腿训练', 'https://musclewiki.com/exercise/bulgarian-split-squat'),
+  ('腿弯举机', 'https://musclewiki.com/exercise/machine-hamstring-curl'),
+  ('臀桥', 'https://musclewiki.com/exercise/glute-bridge');
 
 INSERT INTO plan_days (id, name) VALUES
   (1, '上肢A(胸+三头)'),
