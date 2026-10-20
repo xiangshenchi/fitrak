@@ -11,3 +11,13 @@ export function isValidLogRow(l) {
   if (l.reps != null && (!Number.isInteger(l.reps) || l.reps < 0 || l.reps > 1000)) return false;
   return true;
 }
+
+// 正整数字段（id / session_id 等）
+export function isPositiveInt(v) {
+  return Number.isInteger(v) && v > 0;
+}
+
+// 体重：合理人体范围 (0, 500] kg，仅接受有限数字
+export function isValidWeight(v) {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 500;
+}

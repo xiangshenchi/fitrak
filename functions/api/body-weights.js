@@ -1,4 +1,5 @@
 import { json } from './_auth.js';
+import { isValidDate, isValidWeight } from './_validate.js';
 
 export async function onRequestGet({ env }) {
   const { results } = await env.DB.prepare(
@@ -9,7 +10,7 @@ export async function onRequestGet({ env }) {
 
 export async function onRequestPost({ request, env }) {
   let b; try { b = await request.json(); } catch { return json({ error: 'bad request' }, 400); }
-  if (!b.date || typeof b.weight !== 'number') return json({ error: 'date and weight required' }, 400);
+  if (!isValidDate(b.date) || !isValidWeight(b.weight)) return json({ error: 'invalid date or weight' }, 400);
   const r = await env.DB.prepare(
     'INSERT INTO body_weights (date, weight) VALUES (?, ?)'
   ).bind(b.date, b.weight).run();

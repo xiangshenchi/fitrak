@@ -1,9 +1,9 @@
 import { json } from './_auth.js';
-import { isValidLogRow } from './_validate.js';
+import { isValidLogRow, isPositiveInt } from './_validate.js';
 
 export async function onRequestGet({ request, env }) {
-  const sid = new URL(request.url).searchParams.get('session_id');
-  if (!sid) return json({ error: 'session_id required' }, 400);
+  const sid = Number(new URL(request.url).searchParams.get('session_id'));
+  if (!isPositiveInt(sid)) return json({ error: 'invalid session_id' }, 400);
   const { results } = await env.DB.prepare(
     'SELECT id, session_id, plan_exercise_id, set_no, weight, reps FROM set_logs WHERE session_id = ? ORDER BY plan_exercise_id, set_no'
   ).bind(sid).all();
@@ -23,8 +23,8 @@ export async function onRequestPost({ request, env }) {
 }
 
 export async function onRequestDelete({ request, env }) {
-  const id = new URL(request.url).searchParams.get('id');
-  if (!id) return json({ error: 'id required' }, 400);
+  const id = Number(new URL(request.url).searchParams.get('id'));
+  if (!isPositiveInt(id)) return json({ error: 'invalid id' }, 400);
   await env.DB.prepare('DELETE FROM set_logs WHERE id = ?').bind(id).run();
   return json({ ok: true });
 }
