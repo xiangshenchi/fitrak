@@ -335,7 +335,10 @@ async function renderToday() {
             <div class="ex-name">${escapeHtml(e.name)}</div>
             <div class="ex-sub">${escapeHtml(e.equipment || '自重')} · ${e.target_sets}×${e.target_reps}</div>
           </div>
-          ${isDone ? '<span class="ex-check">✓</span>' : ''}
+          <div class="ex-actions">
+            <a class="ex-demo" href="${escapeHtml(e.tutorial_url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(e.name)} 动作示范">示范</a>
+            ${isDone ? '<span class="ex-check">✓</span>' : ''}
+          </div>
         </div>
         ${sets.map(n => {
           const d = draft[e.id]?.[n];                    // 有草稿时以草稿为准（含显式清空）
@@ -367,8 +370,13 @@ async function renderToday() {
     });
   }
 
-  async function syncView() {
-    sessions = sortSessions((await api('/api/sessions')).sessions);
+  let sessionsLoaded = false;   // 页面内会话缓存标记
+
+  async function syncView(useCache = false) {
+    if (!useCache || !sessionsLoaded) {
+      sessions = sortSessions((await api('/api/sessions')).sessions);
+      sessionsLoaded = true;
+    }
     const matches = sessions.filter(s => s.date === selectedDate && s.day_id === selectedDayId);
     const session = matches[matches.length - 1] || null;
     if (session) {
@@ -391,13 +399,13 @@ async function renderToday() {
     selectedDayId = Number(btn.dataset.day);
     document.querySelectorAll('#dayChips .chip').forEach(c =>
       c.classList.toggle('active', Number(c.dataset.day) === selectedDayId));
-    syncView();
+    syncView(true);
   });
 
   document.getElementById('dateIn').onchange = e => {
     selectedDate = e.target.value || today;
     setText('heroGreet', greetText(selectedDate));
-    syncView();
+    syncView(true);
   };
 
   document.getElementById('save').onclick = async () => {
@@ -438,18 +446,19 @@ async function renderPlan() {
       <section class="card plan-card">
         <h3>${escapeHtml(d.name)}</h3>
         <ol class="plan-list">
-          ${d.exercises.map(e => `<li><span class="pe-name">${escapeHtml(e.name)}</span><span class="pe-meta">${e.target_sets}×${e.target_reps} · ${escapeHtml(e.equipment || '自重')}</span></li>`).join('')}
+          ${d.exercises.map(e => `<li><span class="pe-name">${escapeHtml(e.name)}</span><a class="pe-demo" href="${escapeHtml(e.tutorial_url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(e.name)} 动作示范">示范</a><span class="pe-meta">${e.target_sets}×${e.target_reps} · ${escapeHtml(e.equipment || '自重')}</span></li>`).join('')}
         </ol>
       </section>`).join('')}
   </main>`;
 }
 
 /* ============================================================
-   历史记录
+   历史记录（游标分页：首屏 50 条 + 加载更多）
    ============================================================ */
-async function renderHistory() {
-  // /api/history 一次返回全部 session 及其明细，避免逐条请求（N+1）
-  const [{ items }, { days }] = await Promise.all([api('/api/history'), getPlan()]);
+let histState = { items: [], hasMore: false, next: null };
+
+async function renderHistory(reset = true) {
+  const { days } = await getPlan();
   const dayName = id => (days.find(d => d.id === id) || {}).name || `Day${id}`;
   const exName = id => {
     for (const d of days) {
@@ -458,6 +467,18 @@ async function renderHistory() {
     }
     return `动作${id}`;
   };
+
+  if (reset) {
+    const first = await api('/api/history');
+    histState = { items: first.items, hasMore: first.hasMore, next: null };
+  } else {
+    if (!histState.next) return;
+    const more = await api('/api/history?before=' + encodeURIComponent(histState.next));
+    histState.items = histState.items.concat(more.items);
+    histState.hasMore = more.hasMore;
+  }
+  const last = histState.items[histState.items.length - 1];
+  histState.next = last ? `${last.date},${last.id}` : null;
 
   const detailHtml = s => {
     const valid = s.logs.filter(l => l.weight != null || l.reps != null);
@@ -476,8 +497,8 @@ async function renderHistory() {
   };
 
   app.innerHTML = `<main>
-    <div class="page-head"><h1>训练记录</h1><p>共 ${items.length} 次训练</p></div>
-    ${items.length ? items.map(s => `
+    <div class="page-head"><h1>训练记录</h1><p>已加载 ${histState.items.length} 次训练</p></div>
+    ${histState.items.length ? histState.items.map(s => `
       <section class="card hist-card">
         <div class="hist-head">
           <div>
@@ -488,7 +509,15 @@ async function renderHistory() {
         </div>
         <div class="hist-detail">${detailHtml(s)}</div>
       </section>`).join('') : '<div class="empty">还没有训练记录，去「今天」记录一次吧。</div>'}
+    ${histState.hasMore ? '<button type="button" class="primary big" id="histMore">加载更多</button>' : ''}
   </main>`;
+
+  const moreBtn = document.getElementById('histMore');
+  if (moreBtn) moreBtn.onclick = async () => {
+    moreBtn.disabled = true;
+    try { await renderHistory(false); }
+    catch { toast('加载失败，请重试', 'error'); moreBtn.disabled = false; }
+  };
 
   document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     const ok = await askConfirm('删除这次训练？此操作不可恢复。', { confirmText: '删除' });
@@ -496,7 +525,7 @@ async function renderHistory() {
     try {
       await api('/api/sessions?id=' + b.dataset.del, { method: 'DELETE' });
       toast('已删除该次训练');
-      renderHistory();
+      renderHistory(true);
     } catch {
       toast('删除失败，请重试', 'error');
     }
@@ -604,31 +633,69 @@ async function renderCharts() {
 }
 
 /* ============================================================
-   每周打卡
+   本周打卡（本周网格 + 近 5 周热力图 + 月度/累计统计 + 近 4 周趋势）
    ============================================================ */
 async function renderCheckin() {
-  const { sessions } = await api('/api/sessions');
-  const done = new Set(sessions.map(s => s.date));
-  const today = todayISO();
   const d = new Date();
-  const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  const labels = ['一', '二', '三', '四', '五', '六', '日'];
+  const today = todayISO();
+  const monthStart = toISODate(new Date(d.getFullYear(), d.getMonth(), 1));
+  const stats = await api('/api/stats?monthStart=' + monthStart);
+  const sess = stats.dates.map(date => ({ date }));   // 复用 computeStreak / weekCountOf 所需结构
 
-  const cells = labels.map((label, i) => {
+  const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const isoOf = dt => toISODate(dt);
+  const done = new Set(stats.dates);
+  const labels = ['一','二','三','四','五','六','日'];
+
+  // 1) 本周网格
+  const weekCells = labels.map((label, i) => {
     const dt = new Date(monday); dt.setDate(monday.getDate() + i);
-    const iso = toISODate(dt);
+    const iso = isoOf(dt);
     const ok = done.has(iso);
-    const isToday = iso === today;
-    return `<div class="day-cell${ok ? ' done' : ''}${isToday ? ' today' : ''}">
+    return `<div class="day-cell${ok ? ' done' : ''}${iso === today ? ' today' : ''}">
       <span class="dc-w">周${label}</span>
       <span class="dc-mark">${ok ? '✓' : ''}</span>
       <span class="dc-date">${dt.getMonth() + 1}/${dt.getDate()}</span>
     </div>`;
   }).join('');
 
+  // 2) 近 5 周热力图（周一对齐，5 行 × 7 列）
+  let heat = '';
+  for (let w = 4; w >= 0; w--) {
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(monday); dt.setDate(monday.getDate() - w * 7 + i);
+      const iso = isoOf(dt);
+      heat += `<div class="heat-cell${done.has(iso) ? ' on' : ''}${iso === today ? ' today' : ''}" title="${iso}"></div>`;
+    }
+  }
+
+  // 3) 近 4 周趋势（含本周）
+  const offsets = [3, 2, 1, 0];
+  const counts = offsets.map(o => {
+    const ws = new Date(monday); ws.setDate(monday.getDate() - o * 7);
+    return weekCountOf(sess, isoOf(ws));
+  });
+  const maxCount = Math.max(1, ...counts);
+  const trend = offsets.map((o, idx) => {
+    const ws = new Date(monday); ws.setDate(monday.getDate() - o * 7);
+    const h = Math.round((counts[idx] / maxCount) * 100);
+    return `<div class="trend-col"><div class="trend-bar" style="height:${h}%"><span>${counts[idx]}</span></div><div class="trend-lb">${ws.getMonth() + 1}/${ws.getDate()}</div></div>`;
+  }).join('');
+
   app.innerHTML = `<main>
-    <div class="page-head"><h1>本周打卡</h1><p>本周已练 ${weekCountOf(sessions, today)} 次</p></div>
-    <div class="checkin-grid">${cells}</div>
+    <div class="page-head"><h1>本周打卡</h1><p>本周已练 ${weekCountOf(sess, today)} 次</p></div>
+    <div class="checkin-grid">${weekCells}</div>
+
+    <section class="card"><h3>近 5 周</h3><div class="heat-grid">${heat}</div></section>
+
+    <div class="stats stats-4">
+      <div class="stat"><b>${stats.monthSessions}</b><span>本月次数</span></div>
+      <div class="stat"><b>${computeStreak(sess, today)}</b><span>连续天数</span></div>
+      <div class="stat"><b>${stats.totalSessions}</b><span>累计次数</span></div>
+      <div class="stat"><b>${fmtVolume(stats.monthVolume)}</b><span>本月容量</span></div>
+    </div>
+
+    <section class="card"><h3>近 4 周趋势</h3><div class="trend">${trend}</div></section>
   </main>`;
 }
 
