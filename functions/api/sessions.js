@@ -1,5 +1,5 @@
 import { json } from './_auth.js';
-import { isValidDate, isValidLogRow } from './_validate.js';
+import { isValidDate, isValidLogRow, isPositiveInt } from './_validate.js';
 
 const MAX_LOGS = 200;
 
@@ -50,9 +50,12 @@ export async function onRequestPost({ request, env }) {
 }
 
 export async function onRequestDelete({ request, env }) {
-  const id = new URL(request.url).searchParams.get('id');
-  if (!id) return json({ error: 'id required' }, 400);
-  await env.DB.prepare('DELETE FROM set_logs WHERE session_id = ?').bind(id).run();
-  await env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(id).run();
+  const id = Number(new URL(request.url).searchParams.get('id'));
+  if (!isPositiveInt(id)) return json({ error: 'invalid id' }, 400);
+  // 明细与会话一次 batch 删除，保证原子，避免半删残留
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM set_logs WHERE session_id = ?').bind(id),
+    env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(id),
+  ]);
   return json({ ok: true });
 }
