@@ -403,6 +403,33 @@ button.btn-del:hover { background: var(--danger-soft); border-color: var(--dange
 .btn-ghost { border: 1px solid var(--line); background: var(--surface); color: var(--text); }
 .btn-danger { border: 0; background: var(--danger); color: #fff; }
 
+/* ---------- 动作示范链接 ---------- */
+.ex-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.pe-demo, .ex-demo {
+  font-size: 12px; font-weight: 700;
+  color: var(--accent-deep); text-decoration: none;
+  padding: 2px 8px; border: 1px solid var(--accent); border-radius: 999px;
+  white-space: nowrap;
+}
+.pe-demo { margin-left: 8px; }
+
+/* ---------- 打卡页增强 ---------- */
+.stats-4 { grid-template-columns: repeat(2, 1fr); }
+.heat-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.heat-cell { aspect-ratio: 1; border-radius: 4px; background: var(--field); border: 1px solid var(--line); }
+.heat-cell.on { background: var(--accent); border-color: var(--accent); }
+.heat-cell.today { outline: 2px solid var(--accent-deep); outline-offset: 1px; }
+.trend { display: flex; align-items: flex-end; gap: 12px; height: 140px; }
+.trend-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.trend-bar {
+  width: 100%; max-width: 46px;
+  background: var(--accent);
+  border-radius: 8px 8px 4px 4px;
+  display: flex; align-items: flex-start; justify-content: center;
+  color: var(--accent-ink); font-weight: 800; font-size: 12px;
+}
+.trend-lb { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
 /* ============================================================
    桌面端 >= 768px
    ============================================================ */
@@ -431,6 +458,7 @@ button.btn-del:hover { background: var(--danger-soft); border-color: var(--dange
 
   input.control, select { width: auto; }
   input#pw { width: 100%; }
+  .stats-4 { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* ============================================================
