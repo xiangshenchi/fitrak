@@ -679,7 +679,7 @@ async function renderCheckin() {
   const trend = offsets.map((o, idx) => {
     const ws = new Date(monday); ws.setDate(monday.getDate() - o * 7);
     const h = Math.round((counts[idx] / maxCount) * 100);
-    return `<div class="trend-col"><div class="trend-bar" style="height:${h}%"><span>${counts[idx]}</span></div><div class="trend-lb">${ws.getMonth() + 1}/${ws.getDate()}</div></div>`;
+    return `<div class="trend-col"><div class="trend-bar" style="height:${h}%">${counts[idx] > 0 ? `<span>${counts[idx]}</span>` : ''}</div><div class="trend-lb">${ws.getMonth() + 1}/${ws.getDate()}</div></div>`;
   }).join('');
 
   app.innerHTML = `<main>
