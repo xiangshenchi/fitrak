@@ -5,7 +5,19 @@ import { onRequestGet as logsGet, onRequestDelete as logsDelete } from '../funct
 import { onRequestGet as statsGet } from '../functions/api/stats.js';
 
 // env.DB 传 null：若校验正确，非法入参在触达 DB 之前即返回 400（不会抛错）
-const ctx = (url, opts) => ({ request: new Request(url, opts), env: { DB: null } });
+// data 由 middleware 注入；缺失时应 401
+const ctx = (url, opts) => ({
+  request: new Request(url, opts),
+  env: { DB: null },
+  data: { user: { uid: 1, demo: false } },
+});
+
+describe('auth guard', () => {
+  it('returns 401 when middleware data is missing', async () => {
+    const res = await statsGet({ request: new Request('https://x/api/stats?monthStart=2026-10-01'), env: { DB: null } });
+    expect(res.status).toBe(401);
+  });
+});
 
 describe('body-weights POST validation', () => {
   it('rejects negative weight', async () => {
