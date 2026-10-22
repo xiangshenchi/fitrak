@@ -5,11 +5,8 @@ const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS = 10;
 
 // 克隆 owner(user_id=1) 的 plan_days + plan_exercises 到新用户
-// owner 老数据可能 user_id 仍为 NULL，一并兼容
 async function cloneOwnerPlan(env, newUid) {
-  const days = await env.DB.prepare(
-    'SELECT id, name FROM plan_days WHERE user_id = 1 OR user_id IS NULL ORDER BY id'
-  ).all();
+  const days = await env.DB.prepare('SELECT id, name FROM plan_days WHERE user_id = 1').all();
   const oldToNewDayId = new Map();
   for (const d of days.results) {
     const r = await env.DB.prepare(
@@ -24,8 +21,8 @@ async function cloneOwnerPlan(env, newUid) {
     const newDayId = oldToNewDayId.get(d.id);
     const stmts = exs.results.map(e =>
       env.DB.prepare(
-        'INSERT INTO plan_exercises (user_id, day_id, sort, name, equipment, target_sets, target_reps) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).bind(newUid, newDayId, e.sort, e.name, e.equipment, e.target_sets, e.target_reps)
+        'INSERT INTO plan_exercises (day_id, sort, name, equipment, target_sets, target_reps) VALUES (?, ?, ?, ?, ?, ?)'
+      ).bind(newDayId, e.sort, e.name, e.equipment, e.target_sets, e.target_reps)
     );
     if (stmts.length) await env.DB.batch(stmts);
   }
@@ -44,11 +41,8 @@ export async function onRequestPost({ request, env }) {
   const username = (body.username || '').trim();
   const password = body.password || '';
 
-  try {
-    await ensureSchema(env);
-  } catch {
-    return json({ error: '数据库结构初始化失败，请检查 D1 绑定' }, 500);
-  }
+  try { await ensureSchema(env); }
+  catch { return json({ error: '数据库结构初始化失败，请检查 D1 绑定' }, 500); }
 
   // 限流（复用 login_attempts 表）
   try {

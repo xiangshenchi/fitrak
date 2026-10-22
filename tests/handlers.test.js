@@ -5,7 +5,6 @@ import { onRequestGet as logsGet, onRequestDelete as logsDelete } from '../funct
 import { onRequestGet as statsGet } from '../functions/api/stats.js';
 
 // env.DB 传 null：若校验正确，非法入参在触达 DB 之前即返回 400（不会抛错）
-// data 由 middleware 注入；缺失时应 401
 const ctx = (url, opts) => ({
   request: new Request(url, opts),
   env: { DB: null },

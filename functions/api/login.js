@@ -54,12 +54,8 @@ export async function onRequestPost({ request, env }) {
   }
 
   // 幂等自愈：补齐 users 表 / user_id 列，再初始化 owner
-  try {
-    await ensureSchema(env);
-    await ensureOwner(env);
-  } catch {
-    return json({ error: '数据库结构初始化失败，请检查 D1 绑定' }, 500);
-  }
+  try { await ensureSchema(env); await ensureOwner(env); }
+  catch { return json({ error: '数据库结构初始化失败，请检查 D1 绑定' }, 500); }
 
   // 限流
   try {

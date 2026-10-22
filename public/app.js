@@ -171,8 +171,8 @@ function renderLogin() {
     <div class="login-logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dumbbell" /></svg></div>
     <h1 class="login-title">健身记录</h1>
     <p class="login-sub">登录或注册</p>
-    <input type="text" id="username" placeholder="用户名" autocomplete="username" />
-    <input type="password" id="pw" placeholder="密码" autocomplete="current-password" />
+    <input type="text" id="username" class="control" placeholder="用户名（owner 可留空）" autocomplete="username" />
+    <input type="password" id="pw" class="control" placeholder="密码" autocomplete="current-password" />
     <button type="button" class="primary big" id="go">登录</button>
     <button type="button" class="btn-ghost" id="btnDemo">先试试 Demo（只读体验）</button>
     <p class="auth-switch" id="toRegister">还没账号？注册一个 →</p>
@@ -181,14 +181,15 @@ function renderLogin() {
   const submit = async () => {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('pw').value;
-    if (!username || !password) { toast('请填写用户名和密码', 'error'); return; }
+    if (!password) { toast('请填写密码', 'error'); return; }
     const btn = document.getElementById('go');
     btn.disabled = true;
     try {
+      const body = username ? { username, password } : { password };
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(body),
       });
       if (res.ok) boot();
       else toast(res.status === 401 ? '用户名或密码错误' : '登录失败，请重试', 'error');
@@ -216,9 +217,9 @@ function renderRegister() {
     <div class="login-logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dumbbell" /></svg></div>
     <h1 class="login-title">注册账号</h1>
     <p class="login-sub">3-20 字符用户名 + ≥6 位密码</p>
-    <input type="text" id="regUser" placeholder="用户名" autocomplete="username" />
-    <input type="password" id="regPw" placeholder="密码" autocomplete="new-password" />
-    <input type="password" id="regPw2" placeholder="确认密码" autocomplete="new-password" />
+    <input type="text" id="regUser" class="control" placeholder="用户名" autocomplete="username" />
+    <input type="password" id="regPw" class="control" placeholder="密码" autocomplete="new-password" />
+    <input type="password" id="regPw2" class="control" placeholder="确认密码" autocomplete="new-password" />
     <button type="button" class="primary big" id="btnReg">注册并登录</button>
     <p class="auth-switch" id="toLogin">已有账号？去登录</p>
   </section></main>`;
@@ -278,7 +279,36 @@ async function boot() {
   tabs.querySelectorAll('button').forEach(b => {
     b.onclick = () => showTab(b.dataset.tab);
   });
+  mountLogoutBtn();
   showTab('today');
+}
+
+// 浮动退出按钮：顶部右上角圆形图标；demo 模式隐藏（只读体验不需要）
+function mountLogoutBtn() {
+  let btn = document.getElementById('logoutBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'logoutBtn';
+    btn.className = 'logout-btn';
+    btn.title = '退出登录';
+    btn.innerHTML = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M10 17l-5-5 5-5M5 12h12M14 5h5v14h-5"/></svg>';
+    btn.onclick = () => confirmLogout();
+    document.body.appendChild(btn);
+  }
+  btn.hidden = state.demo;
+}
+
+async function confirmLogout() {
+  const ok = await askConfirm('确定退出登录？', { confirmText: '退出', cancelText: '取消' });
+  if (!ok) return;
+  try { await fetch('/api/logout', { method: 'POST' }); } catch { }
+  document.cookie = 'fit_auth=; path=/; max-age=0';
+  state.demo = false;
+  const btn = document.getElementById('logoutBtn');
+  if (btn) btn.remove();
+  tabs.hidden = true;
+  renderLogin();
 }
 
 function showTab(name) {
