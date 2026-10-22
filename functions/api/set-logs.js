@@ -1,9 +1,9 @@
 import { json } from './_auth.js';
 import { isValidLogRow, isPositiveInt } from './_validate.js';
 
-export async function onRequestGet({ request, env, context }) {
-  const uid = context?.data?.user?.uid;
-  if (uid == null) return json({ error: "unauthorized" }, 401);
+export async function onRequestGet({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   const sid = Number(new URL(request.url).searchParams.get('session_id'));
   if (!isPositiveInt(sid)) return json({ error: 'invalid session_id' }, 400);
   const { results } = await env.DB.prepare(
@@ -15,9 +15,9 @@ export async function onRequestGet({ request, env, context }) {
   return json({ logs: results });
 }
 
-export async function onRequestPost({ request, env, context }) {
-  const uid = context?.data?.user?.uid;
-  if (uid == null) return json({ error: "unauthorized" }, 401);
+export async function onRequestPost({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   let b; try { b = await request.json(); } catch { return json({ error: 'bad request' }, 400); }
   if (!Number.isInteger(b.session_id)) {
     return json({ error: 'session_id, plan_exercise_id, set_no required' }, 400);
@@ -32,9 +32,9 @@ export async function onRequestPost({ request, env, context }) {
   return json({ id: r.meta.last_row_id }, 201);
 }
 
-export async function onRequestDelete({ request, env, context }) {
-  const uid = context?.data?.user?.uid;
-  if (uid == null) return json({ error: "unauthorized" }, 401);
+export async function onRequestDelete({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!isPositiveInt(id)) return json({ error: 'invalid id' }, 400);
   const own = await env.DB.prepare(
