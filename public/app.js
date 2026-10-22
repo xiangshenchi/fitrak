@@ -561,7 +561,7 @@ async function renderCharts() {
   app.innerHTML = `<main>
     <div class="page-head"><h1>数据图表</h1><p>体重变化与每周训练频率</p></div>
     <section class="card">
-      <div class="row">
+      <div class="row bw-row">
         <input type="date" class="control" id="bwDate" value="${todayISO()}" />
         <input type="number" class="control" step="0.1" inputmode="decimal" id="bwVal" placeholder="体重 kg" />
         <button type="button" class="primary" id="bwAdd">记录</button>

@@ -287,6 +287,12 @@ button.primary:active { transform: scale(.98); }
 button.primary:disabled { opacity: .6; cursor: default; }
 button.primary.big { display: block; width: 100%; min-height: 52px; font-size: 17px; border-radius: var(--radius); margin-top: var(--sec-gap); }
 
+/* 体重记录行：强制一行、按钮缩窄、输入框可压缩 */
+.bw-row { flex-wrap: nowrap; }
+.bw-row input[type=date] { flex: 0 1 auto; min-width: 0; }
+.bw-row input[type=number] { flex: 1 1 auto; min-width: 0; }
+.bw-row .primary { min-height: 42px; padding: 8px 12px; font-size: 14px; flex: 0 0 auto; }
+
 button.btn-del {
   min-height: 36px;
   padding: 6px 12px;
