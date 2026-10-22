@@ -1,4 +1,5 @@
 import { signToken, pbkdf2Hash, json } from './_auth.js';
+import { ensureSchema } from './_schema.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS = 10;
@@ -39,6 +40,9 @@ export async function onRequestPost({ request, env }) {
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
   const username = (body.username || '').trim();
   const password = body.password || '';
+
+  try { await ensureSchema(env); }
+  catch { return json({ error: '数据库结构初始化失败，请检查 D1 绑定' }, 500); }
 
   // 限流（复用 login_attempts 表）
   try {

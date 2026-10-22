@@ -367,8 +367,31 @@ button.btn-del:hover { background: var(--danger-soft); border-color: var(--dange
 .login-logo .ic { width: 30px; height: 30px; }
 .login-title { font-size: 22px; margin: 0; }
 .login-sub { color: var(--muted); font-size: 13px; margin: 6px 0 18px; }
-.login-card input[type=password] { margin-bottom: 12px; }
+.login-card input.control { width: 100%; margin-bottom: 10px; }
+.login-card .control:last-of-type { margin-bottom: 14px; }
 .load-fail { text-align: center; padding: 26px; }
+
+/* ---------- 浮动退出按钮 ---------- */
+.logout-btn {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 12px);
+  right: 12px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  transition: color .15s, background .15s, transform .15s;
+  z-index: 20;
+  min-height: 36px;
+  padding: 0;
+}
+.logout-btn .ic { width: 18px; height: 18px; }
+.logout-btn:hover { color: var(--ink); background: var(--accent-soft); }
+.logout-btn:active { transform: scale(.95); }
 
 /* ---------- Toast ---------- */
 .toast {

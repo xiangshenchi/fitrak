@@ -1,4 +1,5 @@
 import { signToken, pbkdf2Hash, pbkdf2Verify, json } from './_auth.js';
+import { ensureSchema } from './_schema.js';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_FAILS = 10;
@@ -11,23 +12,28 @@ async function recordFailure(env, ip) {
   ]);
 }
 
-// 首次运行时：如果 users 表为空，用 APP_PASSWORD 初始化 owner + 回填老数据的 user_id
+// 幂等：users 表为空时用 APP_PASSWORD 初始化 owner；每次登录都回填 user_id 为 NULL 的老数据
 async function ensureOwner(env) {
-  const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
-  if (n > 0) return;
-  if (!env.APP_PASSWORD) return;
-  const { hash, salt } = await pbkdf2Hash(env.APP_PASSWORD);
-  await env.DB.prepare(
-    'INSERT INTO users (username, pwd_hash, pwd_salt, created_at) VALUES (?, ?, ?, ?)'
-  ).bind('owner', hash, salt, Date.now()).run();
-  // 回填老数据 user_id = 1（owner.id）
-  await env.DB.batch([
-    env.DB.prepare('UPDATE sessions SET user_id = 1 WHERE user_id IS NULL'),
-    env.DB.prepare('UPDATE set_logs SET user_id = 1 WHERE user_id IS NULL'),
-    env.DB.prepare('UPDATE body_weights SET user_id = 1 WHERE user_id IS NULL'),
-    env.DB.prepare('UPDATE plan_days SET user_id = 1 WHERE user_id IS NULL'),
-    env.DB.prepare('UPDATE plan_exercises SET user_id = 1 WHERE user_id IS NULL'),
-  ]);
+  if (env.APP_PASSWORD) {
+    const { n } = await env.DB.prepare('SELECT COUNT(*) AS n FROM users').first();
+    if (n === 0) {
+      const { hash, salt } = await pbkdf2Hash(env.APP_PASSWORD);
+      try {
+        await env.DB.prepare(
+          'INSERT INTO users (username, pwd_hash, pwd_salt, created_at) VALUES (?, ?, ?, ?)'
+        ).bind('owner', hash, salt, Date.now()).run();
+      } catch { /* 并发下可能已被插入 */ }
+    }
+  }
+  try {
+    await env.DB.batch([
+      env.DB.prepare('UPDATE sessions SET user_id = 1 WHERE user_id IS NULL'),
+      env.DB.prepare('UPDATE set_logs SET user_id = 1 WHERE user_id IS NULL'),
+      env.DB.prepare('UPDATE body_weights SET user_id = 1 WHERE user_id IS NULL'),
+      env.DB.prepare('UPDATE plan_days SET user_id = 1 WHERE user_id IS NULL'),
+      env.DB.prepare('UPDATE plan_exercises SET user_id = 1 WHERE user_id IS NULL'),
+    ]);
+  } catch { /* 表结构异常时忽略 */ }
 }
 
 function setCookieHeader(request, token) {
@@ -47,8 +53,9 @@ export async function onRequestPost({ request, env }) {
     return json({ ok: true, demo: true }, 200, setCookieHeader(request, token));
   }
 
-  // 确保 owner 初始化（幂等）
-  try { await ensureOwner(env); } catch { /* 可能表未迁移 */ }
+  // 幂等自愈：补齐 users 表 / user_id 列，再初始化 owner
+  try { await ensureSchema(env); await ensureOwner(env); }
+  catch { return json({ error: '数据库结构初始化失败，请检查 D1 绑定' }, 500); }
 
   // 限流
   try {

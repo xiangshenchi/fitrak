@@ -3,8 +3,9 @@ import { isValidDate } from './_validate.js';
 
 // 打卡页专用只读聚合：避免前端拉取全部明细
 // monthStart 由前端按本地时区计算（如 2026-10-01），规避 Workers UTC 时区偏差
-export async function onRequestGet({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
-  const uid = context.data?.user?.uid || 1;
+export async function onRequestGet({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   const monthStart = new URL(request.url).searchParams.get('monthStart');
   if (!isValidDate(monthStart)) return json({ error: 'invalid monthStart' }, 400);
 

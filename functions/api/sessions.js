@@ -3,8 +3,9 @@ import { isValidDate, isValidLogRow, isPositiveInt } from './_validate.js';
 
 const MAX_LOGS = 200;
 
-export async function onRequestGet({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
-  const uid = context.data?.user?.uid || 1;
+export async function onRequestGet({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   const u = new URL(request.url);
   const from = u.searchParams.get('from');
   const to = u.searchParams.get('to');
@@ -17,8 +18,9 @@ export async function onRequestGet({ request, env, context = { data: { user: { u
 }
 
 // 保存一次训练：同一天同一训练日复用已有 session，重复保存覆盖明细而非新增记录
-export async function onRequestPost({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
-  const uid = context.data?.user?.uid || 1;
+export async function onRequestPost({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   let b; try { b = await request.json(); } catch { return json({ error: 'bad request' }, 400); }
   if (!isValidDate(b.date) || !Number.isInteger(b.day_id)) {
     return json({ error: 'date and day_id required' }, 400);
@@ -51,8 +53,9 @@ export async function onRequestPost({ request, env, context = { data: { user: { 
   return json({ id: sessionId, saved: logs.length, reused: !!existing });
 }
 
-export async function onRequestDelete({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
-  const uid = context.data?.user?.uid || 1;
+export async function onRequestDelete({ request, env, data }) {
+  const uid = data?.user?.uid;
+  if (uid == null) return json({ error: 'unauthorized' }, 401);
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!isPositiveInt(id)) return json({ error: 'invalid id' }, 400);
   // 只能删自己的 session
