@@ -106,17 +106,15 @@ small { color: var(--muted); }
   align-items: flex-start;
   margin: 4px 0 var(--sec-gap);
 }
-.greet { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .day-name { font-size: 25px; font-weight: 800; letter-spacing: -.5px; margin-top: 2px; }
 .hero-date {
-  display: inline-block;
-  margin-top: 4px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--muted);
   background: none;
   border: 0;
-  padding: 2px 6px;
+  padding: 0 4px;
+  margin: 0 -4px;
   border-radius: 6px;
   cursor: pointer;
   transition: color .15s ease, background .15s ease;
