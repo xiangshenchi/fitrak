@@ -257,6 +257,8 @@ async function renderToday() {
       <div class="hero-left">
         <div class="greet" id="heroGreet">${escapeHtml(greetText(selectedDate))}</div>
         <div class="day-name" id="heroDay">${escapeHtml(dayById(selectedDayId).name)}</div>
+        <button type="button" class="hero-date" id="heroDateBtn" aria-label="选择日期">${escapeHtml(greetText(selectedDate))}</button>
+        <input type="date" class="sr-only" id="dateIn" value="${today}" />
       </div>
       <div class="streak" id="heroStreak"></div>
     </header>
@@ -271,11 +273,6 @@ async function renderToday() {
       <div class="stat"><b id="stSets">0</b><span>今日组数</span></div>
       <div class="stat"><b id="stVol">0</b><span>总容量</span></div>
       <div class="stat"><b id="stWeek">0</b><span>本周次数</span></div>
-    </div>
-
-    <div class="date-row">
-      <label for="dateIn">日期</label>
-      <input type="date" class="control" id="dateIn" value="${today}" />
     </div>
 
     <div class="chips" id="dayChips">
@@ -300,6 +297,9 @@ async function renderToday() {
     const day = dayById(selectedDayId);
     setText('heroGreet', greetText(selectedDate));
     setText('heroDay', day.name);
+    setText('heroDateBtn', greetText(selectedDate));
+    const realDate = document.getElementById('dateIn');
+    if (realDate) realDate.value = selectedDate;
     paintStreak(computeStreak(sessions, today));
 
     const totalEx = day.exercises.length;
@@ -405,8 +405,17 @@ async function renderToday() {
   document.getElementById('dateIn').onchange = e => {
     selectedDate = e.target.value || today;
     setText('heroGreet', greetText(selectedDate));
+    setText('heroDateBtn', greetText(selectedDate));
     syncView(true);
   };
+
+  document.getElementById('heroDateBtn').addEventListener('click', () => {
+    const picker = document.getElementById('dateIn');
+    if (!picker) return;
+    // showPicker() 在老浏览器不可用时回退 focus
+    if (picker.showPicker) picker.showPicker();
+    else picker.focus();
+  });
 
   document.getElementById('save').onclick = async () => {
     const grouped = collect();
