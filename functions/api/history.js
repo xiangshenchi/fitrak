@@ -6,8 +6,9 @@ const MAX_LIMIT = 500;
 
 // 记录页专用：按 (date, id) 倒序游标分页，一次返回本页 session 及其明细，避免 N+1
 // 游标格式：before=<date>,<id>，取比该条更早的记录
-export async function onRequestGet({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
-  const uid = context.data?.user?.uid || 1;
+export async function onRequestGet({ request, env, context }) {
+  const uid = context?.data?.user?.uid;
+  if (uid == null) return json({ error: "unauthorized" }, 401);
   const u = new URL(request.url);
   let limit = Number(u.searchParams.get('limit') ?? DEFAULT_LIMIT);
   if (!Number.isInteger(limit) || limit <= 0) limit = DEFAULT_LIMIT;
