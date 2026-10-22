@@ -255,9 +255,8 @@ async function renderToday() {
   app.innerHTML = `<main>
     <header class="hero">
       <div class="hero-left">
-        <div class="greet" id="heroGreet">${escapeHtml(greetText(selectedDate))}</div>
+        <button type="button" class="hero-date" id="heroGreet" aria-label="选择日期">${escapeHtml(greetText(selectedDate))}</button>
         <div class="day-name" id="heroDay">${escapeHtml(dayById(selectedDayId).name)}</div>
-        <button type="button" class="hero-date" id="heroDateBtn" aria-label="选择日期">${escapeHtml(greetText(selectedDate))}</button>
         <input type="date" class="sr-only" id="dateIn" value="${today}" />
       </div>
       <div class="streak" id="heroStreak"></div>
@@ -297,9 +296,6 @@ async function renderToday() {
     const day = dayById(selectedDayId);
     setText('heroGreet', greetText(selectedDate));
     setText('heroDay', day.name);
-    setText('heroDateBtn', greetText(selectedDate));
-    const realDate = document.getElementById('dateIn');
-    if (realDate) realDate.value = selectedDate;
     paintStreak(computeStreak(sessions, today));
 
     const totalEx = day.exercises.length;
@@ -405,11 +401,10 @@ async function renderToday() {
   document.getElementById('dateIn').onchange = e => {
     selectedDate = e.target.value || today;
     setText('heroGreet', greetText(selectedDate));
-    setText('heroDateBtn', greetText(selectedDate));
     syncView(true);
   };
 
-  document.getElementById('heroDateBtn').addEventListener('click', () => {
+  document.getElementById('heroGreet').addEventListener('click', () => {
     const picker = document.getElementById('dateIn');
     if (!picker) return;
     // showPicker() 在老浏览器不可用时回退 focus
