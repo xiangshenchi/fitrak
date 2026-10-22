@@ -499,3 +499,50 @@ button.btn-del:hover { background: var(--danger-soft); border-color: var(--dange
     transition-duration: .001ms !important;
   }
 }
+
+/* Demo 模式横幅 */
+.demo-banner {
+  background: rgba(255, 149, 0, 0.12);
+  color: #d97706;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  text-align: center;
+  margin-bottom: var(--sec-gap);
+  border: 1px solid rgba(255, 149, 0, 0.25);
+}
+
+/* 幽灵按钮（Demo 入口用） */
+.btn-ghost {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.btn-ghost:hover { color: var(--fg); border-color: var(--accent-deep); }
+
+/* 登录页切换链接 */
+.auth-switch {
+  text-align: center;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.auth-switch:hover { color: var(--accent-deep); }
+
+/* 屏幕阅读器用：视觉隐藏但可被键盘/读屏访问 */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  white-space: nowrap; border: 0;
+}

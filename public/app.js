@@ -170,39 +170,99 @@ function renderLogin() {
   app.innerHTML = `<main class="login-main"><section class="card login-card">
     <div class="login-logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dumbbell" /></svg></div>
     <h1 class="login-title">健身记录</h1>
-    <p class="login-sub">请输入密码进入</p>
+    <p class="login-sub">登录或注册</p>
+    <input type="text" id="username" placeholder="用户名" autocomplete="username" />
     <input type="password" id="pw" placeholder="密码" autocomplete="current-password" />
-    <button type="button" class="primary big" id="go">进入</button>
+    <button type="button" class="primary big" id="go">登录</button>
+    <button type="button" class="btn-ghost" id="btnDemo">先试试 Demo（只读体验）</button>
+    <p class="auth-switch" id="toRegister">还没账号？注册一个 →</p>
   </section></main>`;
 
   const submit = async () => {
+    const username = document.getElementById('username').value.trim();
     const password = document.getElementById('pw').value;
-    if (!password) { toast('请输入密码', 'error'); return; }
+    if (!username || !password) { toast('请填写用户名和密码', 'error'); return; }
     const btn = document.getElementById('go');
     btn.disabled = true;
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ username, password }),
       });
       if (res.ok) boot();
-      else toast(res.status === 401 ? '密码错误' : '登录失败，请重试', 'error');
-    } catch {
-      toast('网络连接失败，请稍后重试', 'error');
-    } finally {
-      btn.disabled = false;
-    }
+      else toast(res.status === 401 ? '用户名或密码错误' : '登录失败，请重试', 'error');
+    } catch { toast('网络连接失败，请稍后重试', 'error'); }
+    finally { btn.disabled = false; }
   };
+
   document.getElementById('go').onclick = submit;
+  document.getElementById('btnDemo').onclick = async () => {
+    try {
+      await fetch('/api/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ demo: true }) });
+      boot();
+      toast('Demo 模式：只读视图', 'info', 3000);
+    } catch (e) { toast(e.message, 'error'); }
+  };
+  document.getElementById('toRegister').onclick = renderRegister;
   document.getElementById('pw').onkeydown = e => { if (e.key === 'Enter') submit(); };
-  document.getElementById('pw').focus();
+  document.getElementById('username').onkeydown = e => { if (e.key === 'Enter') submit(); };
+  document.getElementById('username').focus();
+}
+
+function renderRegister() {
+  tabs.hidden = true;
+  app.innerHTML = `<main class="login-main"><section class="card login-card">
+    <div class="login-logo"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-dumbbell" /></svg></div>
+    <h1 class="login-title">注册账号</h1>
+    <p class="login-sub">3-20 字符用户名 + ≥6 位密码</p>
+    <input type="text" id="regUser" placeholder="用户名" autocomplete="username" />
+    <input type="password" id="regPw" placeholder="密码" autocomplete="new-password" />
+    <input type="password" id="regPw2" placeholder="确认密码" autocomplete="new-password" />
+    <button type="button" class="primary big" id="btnReg">注册并登录</button>
+    <p class="auth-switch" id="toLogin">已有账号？去登录</p>
+  </section></main>`;
+
+  document.getElementById('btnReg').onclick = async () => {
+    const username = document.getElementById('regUser').value.trim();
+    const password = document.getElementById('regPw').value;
+    const confirm = document.getElementById('regPw2').value;
+    if (!username || username.length < 3) return toast('用户名至少 3 字符', 'error');
+    if (password.length < 6) return toast('密码至少 6 位', 'error');
+    if (password !== confirm) return toast('两次密码不一致', 'error');
+    try {
+      const res = await fetch('/api/register', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ username, password, confirm })
+      });
+      if (res.ok) { boot(); toast(`欢迎, ${username}！`, 'info'); }
+      else toast(res.status === 409 ? '用户名已存在' : '注册失败', 'error');
+    } catch (e) { toast(e.message, 'error'); }
+  };
+  document.getElementById('toLogin').onclick = renderLogin;
+  document.getElementById('regUser').focus();
 }
 
 /* ============================================================
    启动 / 标签切换
    ============================================================ */
+// Demo 状态检测：解 cookie 里的 token payload
+const state = { demo: false };
+function checkDemo() {
+  const cookie = document.cookie.split(';').find(c => c.trim().startsWith('fit_auth='));
+  if (!cookie) return false;
+  try {
+    const token = cookie.trim().split('=')[1];
+    const [payload] = token.split('.');
+    if (!payload) return false;
+    // v2 payload 是 base64url JSON；v1 payload 是 "v1.<exp>"
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return !!json.demo;
+  } catch { return false; }
+}
+
 async function boot() {
+  state.demo = checkDemo();
   try {
     await getPlan();
   } catch (e) {
@@ -253,6 +313,7 @@ async function renderToday() {
   const draftKey = id => 'draft_' + id;
 
   app.innerHTML = `<main>
+    ${state.demo ? '<div class="demo-banner">Demo 模式 · 只读体验</div>' : ''}
     <header class="hero">
       <div class="hero-left">
         <button type="button" class="hero-date" id="heroGreet" aria-label="选择日期">${escapeHtml(greetText(selectedDate))}</button>
@@ -279,7 +340,8 @@ async function renderToday() {
     </div>
 
     <div id="exWrap"></div>
-    <button type="button" class="primary big" id="save">完成本次训练</button>
+    ${state.demo ? '<div class="demo-banner">Demo 模式 · 只读，无法保存训练</div>' : ''}
+    <button type="button" class="primary big" id="save"${state.demo ? ' disabled' : ''}>${state.demo ? 'Demo 只读' : '完成本次训练'}</button>
   </main>`;
 
   const collect = () => {
@@ -560,11 +622,12 @@ async function renderCharts() {
   const chartLoaded = await ensureChart();
   app.innerHTML = `<main>
     <div class="page-head"><h1>数据图表</h1><p>体重变化与每周训练频率</p></div>
+    ${state.demo ? '<div class="demo-banner">Demo 模式 · 只读，无法添加体重记录</div>' : ''}
     <section class="card">
       <div class="row bw-row">
         <input type="date" class="control" id="bwDate" value="${todayISO()}" />
-        <input type="number" class="control" step="0.1" inputmode="decimal" id="bwVal" placeholder="体重 kg" />
-        <button type="button" class="primary" id="bwAdd">记录</button>
+        <input type="number" class="control" step="0.1" inputmode="decimal" id="bwVal" placeholder="体重 kg" ${state.demo ? 'disabled' : ''} />
+        <button type="button" class="primary" id="bwAdd"${state.demo ? ' disabled' : ''}>${state.demo ? 'Demo 只读' : '记录'}</button>
       </div>
     </section>
     <section class="card"><h3>体重曲线</h3>${chartLoaded ? '<div class="chart-wrap"><canvas id="wChart"></canvas></div>' : '<p class="loading-txt">图表库加载失败，请刷新重试。</p>'}</section>
