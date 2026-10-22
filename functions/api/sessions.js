@@ -3,20 +3,22 @@ import { isValidDate, isValidLogRow, isPositiveInt } from './_validate.js';
 
 const MAX_LOGS = 200;
 
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
+  const uid = context.data?.user?.uid || 1;
   const u = new URL(request.url);
   const from = u.searchParams.get('from');
   const to = u.searchParams.get('to');
-  let q = 'SELECT id, date, day_id, note FROM sessions';
-  const binds = [];
-  if (from && to) { q += ' WHERE date BETWEEN ? AND ?'; binds.push(from, to); }
+  let q = 'SELECT id, date, day_id, note FROM sessions WHERE user_id = ?';
+  const binds = [uid];
+  if (from && to) { q += ' AND date BETWEEN ? AND ?'; binds.push(from, to); }
   q += ' ORDER BY date DESC, id DESC';
   const { results } = await env.DB.prepare(q).bind(...binds).all();
   return json({ sessions: results });
 }
 
 // 保存一次训练：同一天同一训练日复用已有 session，重复保存覆盖明细而非新增记录
-export async function onRequestPost({ request, env }) {
+export async function onRequestPost({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
+  const uid = context.data?.user?.uid || 1;
   let b; try { b = await request.json(); } catch { return json({ error: 'bad request' }, 400); }
   if (!isValidDate(b.date) || !Number.isInteger(b.day_id)) {
     return json({ error: 'date and day_id required' }, 400);
@@ -29,12 +31,12 @@ export async function onRequestPost({ request, env }) {
   }
 
   const existing = await env.DB.prepare(
-    'SELECT id FROM sessions WHERE date = ? AND day_id = ? ORDER BY id DESC LIMIT 1'
-  ).bind(b.date, b.day_id).first();
+    'SELECT id FROM sessions WHERE user_id = ? AND date = ? AND day_id = ? ORDER BY id DESC LIMIT 1'
+  ).bind(uid, b.date, b.day_id).first();
   const sessionId = existing
     ? existing.id
-    : (await env.DB.prepare('INSERT INTO sessions (date, day_id, note) VALUES (?, ?, ?)')
-        .bind(b.date, b.day_id, b.note ?? null).run()).meta.last_row_id;
+    : (await env.DB.prepare('INSERT INTO sessions (user_id, date, day_id, note) VALUES (?, ?, ?, ?)')
+        .bind(uid, b.date, b.day_id, b.note ?? null).run()).meta.last_row_id;
 
   if (!logs) return json({ id: sessionId, reused: !!existing }, existing ? 200 : 201);
 
@@ -49,10 +51,13 @@ export async function onRequestPost({ request, env }) {
   return json({ id: sessionId, saved: logs.length, reused: !!existing });
 }
 
-export async function onRequestDelete({ request, env }) {
+export async function onRequestDelete({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
+  const uid = context.data?.user?.uid || 1;
   const id = Number(new URL(request.url).searchParams.get('id'));
   if (!isPositiveInt(id)) return json({ error: 'invalid id' }, 400);
-  // 明细与会话一次 batch 删除，保证原子，避免半删残留
+  // 只能删自己的 session
+  const own = await env.DB.prepare('SELECT id FROM sessions WHERE id = ? AND user_id = ?').bind(id, uid).first();
+  if (!own) return json({ error: 'not found' }, 404);
   await env.DB.batch([
     env.DB.prepare('DELETE FROM set_logs WHERE session_id = ?').bind(id),
     env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(id),

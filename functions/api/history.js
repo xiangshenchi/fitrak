@@ -6,20 +6,21 @@ const MAX_LIMIT = 500;
 
 // 记录页专用：按 (date, id) 倒序游标分页，一次返回本页 session 及其明细，避免 N+1
 // 游标格式：before=<date>,<id>，取比该条更早的记录
-export async function onRequestGet({ request, env }) {
+export async function onRequestGet({ request, env, context = { data: { user: { uid: 1, demo: false } } } }) {
+  const uid = context.data?.user?.uid || 1;
   const u = new URL(request.url);
   let limit = Number(u.searchParams.get('limit') ?? DEFAULT_LIMIT);
   if (!Number.isInteger(limit) || limit <= 0) limit = DEFAULT_LIMIT;
   limit = Math.min(limit, MAX_LIMIT);
 
   const before = u.searchParams.get('before');
-  const binds = [];
-  let where = '';
+  const binds = [uid];
+  let where = 'WHERE user_id = ?';
   if (before) {
     const [d, i] = before.split(',');
     const bid = Number(i);
     if (isValidDate(d) && Number.isInteger(bid)) {
-      where = 'WHERE (date < ? OR (date = ? AND id < ?))';
+      where += ' AND (date < ? OR (date = ? AND id < ?))';
       binds.push(d, d, bid);
     }
   }
