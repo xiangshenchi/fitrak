@@ -476,6 +476,11 @@ button.btn-del:hover { background: var(--danger-soft); border-color: var(--dange
   input.control, select { width: auto; }
   input#pw { width: 100%; }
   .stats-4 { grid-template-columns: repeat(4, 1fr); }
+
+  /* 热力图方块紧凑化：桌面端 aspect-ratio 1 会撑到 100px+，改成 max-width 22px 类 GitHub */
+  .heat-grid { gap: 4px; justify-content: center; }
+  .heat-cell { max-width: 22px; border-radius: 3px; }
+  .heat-cell.today { outline: 1.5px solid var(--accent-deep); outline-offset: 0; }
 }
 
 /* ============================================================
